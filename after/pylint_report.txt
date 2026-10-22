@@ -1,0 +1,6 @@
+************* Module hospital_patient_system
+hospital_patient_system.py:121:0: C0304: Final newline missing (missing-final-newline)
+
+------------------------------------------------------------------
+Your code has been rated at 9.84/10 (previous run: 9.84/10, +0.00)
+
