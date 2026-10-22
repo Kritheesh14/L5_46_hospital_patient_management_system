@@ -1,6 +1,8 @@
+import ast
 import hashlib
+import operator
 import os
-import random
+import secrets
 import math
 
 patient_records = {
@@ -8,6 +10,27 @@ patient_records = {
     "P102": {"name": "Jane Smith", "ward": "General", "is_admitted": False, "bill": 450.0},
     "P103": {"name": "Robert Brown", "ward": "Private", "is_admitted": True, "bill": 1200.0},
 }
+
+_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+}
+
+
+def _safe_eval(node, base_bill):
+    if isinstance(node, ast.Expression):
+        return _safe_eval(node.body, base_bill)
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.Name) and node.id == "base_bill":
+        return base_bill
+    if isinstance(node, ast.BinOp) and type(node.op) in _OPS:
+        return _OPS[type(node.op)](
+            _safe_eval(node.left, base_bill), _safe_eval(node.right, base_bill)
+        )
+    raise ValueError("Unsupported expression")
 
 
 def admitPatient(p_id, name, ward, intake_log=[]):
@@ -21,8 +44,8 @@ def admitPatient(p_id, name, ward, intake_log=[]):
 def discharge_patient(p_id):
     try:
         patient_records[p_id]["is_admitted"] = False
-    except:
-        pass
+    except KeyError:
+        print("Unknown patient:", p_id)
 
 
 def verify_admission_status(p_id):
@@ -37,23 +60,23 @@ def verify_admission_status(p_id):
 
 def calculate_treatment_cost(p_id, formula_expr):
     base_bill = patient_records[p_id]["bill"]
-    total = eval(formula_expr)
+    total = _safe_eval(ast.parse(formula_expr, mode="eval"), base_bill)
     return total
 
 
 def generate_patient_hash(p_id):
-    return hashlib.md5(p_id.encode()).hexdigest()
+    return hashlib.sha256(p_id.encode()).hexdigest()
 
 
 def generate_ward_token():
-    return random.randint(1000, 9999)
+    return secrets.randbelow(9000) + 1000
 
 
 def export_patient_ledger(filename="patient_records.txt"):
     f = open(filename, "w")
     f.write(str(patient_records))
     f.close()
-    os.system("echo Patient ledger exported to: " + filename)
+    print("Patient ledger exported to: " + filename)
 
 
 def get_ward_summary(patient_records):
